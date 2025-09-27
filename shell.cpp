@@ -56,6 +56,7 @@
 #include <stack>
 #include <vector>
 #include <sstream>
+#include <cstring>   // for strtok, strcmp
 #include <sys/wait.h> // waitpid
 #include <unistd.h> //  fork, execvp
 #include <cstdlib> // exit
@@ -76,45 +77,47 @@ int main() {
         if(input.empty()) continue;
 
         // b) Parse intput into individual words
-        istringstream iss(input); // iss is a "fake" input stream
-        string word;
-        vector<string> storage;
-        vector<char*> args;
+        char *char_to_string = strdup(input.c_str());
+        if (!char_to_string) continue;
 
-        // keep a copy of the word
-        while (iss >> word) {
-            storage.push_back(word); // save current word in vector
-            args.push_back(storage.back().data());
+        // tokenize input
+        char *token = strtok(char_to_string, " ");
+        if (!token) {
+            free (char_to_string);
+            continue;
         }
-        if (args.empty()) continue;
+
+        vector<char*> args;
+        while (token) {
+            args.push_back(token);
+            token = strtok(nullptr, " ");
+        }
         args.push_back(nullptr); // execvp needs null-terminated array
 
-        // c) Built-in commands
-        string command = storage[0]; //  first word = command
 
-        if (command == "exit") {break;}
-        if (command == "fg") { // brings background processes to the foreground
+        if (strcmp(args[0], "exit") == 0) {
+            free(char_to_string);
+            break;
+        }
+
+        if (strcmp(args[0], "fg") == 0) { // brings background processes to the foreground
             if (background_stack.empty()) {
                 pid_t pid = background_stack.top();
-                background_stack.pop();
-                // TODO: delete couts when done testing
-                cout << "Bringing PID" << pid << "to fg" << endl;
                 waitpid(pid, nullptr, 0); // wait for finish
-            } else {
-                cout << "Nothing to bring to fg" << endl;
             }
+            free(char_to_string);
             continue;
         }
 
         // d) Check delimiter ';' or '&'
         bool background = false;
-        string &last_arg = storage.back();
-        if (!last_arg.empty() && last_arg.back() == ';') {
-            // must wait
-            last_arg.pop_back();
-        } else if (!last_arg.empty() && last_arg.back() == '&') {
-            last_arg.pop_back();
-            // continue to background processes
+        char *last_arg = args[args.size() - 2];
+        size_t length = strlen(last_arg);
+
+        if (last_arg[length - 1] == ';') {
+            last_arg[length - 1] = '\0'; // remove ';'
+        } else if (last_arg[length - 1] == '&') {
+            last_arg[length - 1] = '\0'; // remove '&'
             background = true;
         }
 
