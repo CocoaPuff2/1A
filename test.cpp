@@ -50,3 +50,40 @@
  *  5. int stcmpt( const char* s1, const char* s2)
  *  6. pid_t waitpid( pid_t pid, int *status, 0 )
  */
+
+#include <iostream>
+#include <string>
+#include <stack>
+#include <vector>
+#include <sstream>
+
+// pid_t = data type to rep PID (Process ID)
+// for background processes, used with fg
+std::stack<pid_t> background;
+
+// a) Show prompt ($), keep shell running (infinite loop)
+while(true) {
+    cout << "$" << flush; // display immediately
+    string input;
+    if (!getline(cin, input)) break; // exits gracefully
+
+    // b) Parse intput into individual words
+    istringstream iss(input); // iss is a "fake" input stream
+    string word;
+
+    vector<string> storage;
+    vector<char*> args;
+
+    // keep a copy of the word
+    while (iss >> word) {
+        storage.push_back(word);
+        args.push_back(storage.back().data()); // ptr to char
+    }
+    args.push_back(nullptr);
+
+    execvp(args[0], args.data());
+
+}
+
+
+
