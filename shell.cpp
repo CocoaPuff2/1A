@@ -55,7 +55,6 @@
 #include <string>
 #include <stack>
 #include <vector>
-#include <sstream>
 #include <cstring>   // for strtok, strcmp
 #include <sys/wait.h> // waitpid
 #include <unistd.h> //  fork, execvp
@@ -64,7 +63,7 @@
 using namespace std;
 
 int main() {
-    // pid_t = data type to rep PID (Process ID)
+    // pid_t --> data type to rep PID (Process ID)
     // for background processes, used with fg
     stack<pid_t> background_stack;
 
@@ -72,18 +71,18 @@ int main() {
     // a) Show prompt ($), keep shell running (infinite loop)
         cout << "$" << flush; // display immediately
         string input;
-        if (!getline(cin, input)) break; // exits gracefully
+        if (!getline(cin, input)) break; // exit the shell
 
         if(input.empty()) continue;
 
-        // b) Parse intput into individual words
-        char *char_to_string = strdup(input.c_str());
-        if (!char_to_string) continue;
+        // b) Parse input into individual words
+        char *c_type_string = strdup(input.c_str());
+        if (!c_type_string) continue;
 
         // tokenize input
-        char *token = strtok(char_to_string, " ");
+        char *token = strtok(c_type_string, " ");
         if (!token) {
-            free (char_to_string);
+            free(c_type_string);
             continue;
         }
 
@@ -94,18 +93,20 @@ int main() {
         }
         args.push_back(nullptr); // execvp needs null-terminated array
 
-
+        // exit command
         if (strcmp(args[0], "exit") == 0) {
-            free(char_to_string);
+            free(c_type_string);
             break;
         }
 
+        // fg command
         if (strcmp(args[0], "fg") == 0) { // brings background processes to the foreground
-            if (background_stack.empty()) {
+            if (!background_stack.empty()) {
                 pid_t pid = background_stack.top();
+                background_stack.pop();
                 waitpid(pid, nullptr, 0); // wait for finish
             }
-            free(char_to_string);
+            free(c_type_string);
             continue;
         }
 
@@ -115,37 +116,35 @@ int main() {
         size_t length = strlen(last_arg);
 
         if (last_arg[length - 1] == ';') {
-            last_arg[length - 1] = '\0'; // remove ';'
+            last_arg[length - 1] = '\0'; // remove the ';'
         } else if (last_arg[length - 1] == '&') {
-            last_arg[length - 1] = '\0'; // remove '&'
-            background = true;
+            last_arg[length - 1] = '\0'; // remove the '&'
+            background = true; // & means background processes
         }
 
         // e) Fork child proecess
         pid_t pid = fork();
 
-        if (pid < 0) {
-            cout << "Fork failure" << endl;
-        } else if (pid == 0) {
+        if (pid == 0) {
             // Execute the command in child process
             execvp(args[0], args.data());
+            cerr << "execvp failed: " << endl;
             exit(1); // if exec fails
-        } else {
+        } else if (pid > 0) {
             // Execute parent process
             if (background) {
-                // save the bg PID for fg
-                cout << "Currently running PID " << pid << "in back" << endl;
                 background_stack.push(pid);
-            } else {
+            }  else {
                 // wait for child process to complete
                 waitpid(pid, nullptr, 0);
             }
+        } else {
+            // Fork Failure
+            cerr << "fork failed: "  << endl;
         }
+        free(c_type_string);
     }
-
-    cout << "Shell terminated" << endl;
     return 0;
-
 }
 
 
