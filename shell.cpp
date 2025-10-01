@@ -110,8 +110,6 @@ int main() {
                 pid_stack.pop();
                 // wait for pid on stack top then pop it
                 waitpid(bg_pid, &status, 0);
-            } else {
-                printf("No background processes");
             }
             continue;
         }
@@ -120,17 +118,23 @@ int main() {
         if (pid < 0) {
             perror("The fork failed");
             continue;
-        }
-
-        if (pid == 0) {
+        } else if (pid == 0) {
             // child process
             if (execvp(token[0], token) < 0) {
                 perror("The execvpt failed");
                 exit(1);
             }
-        } else {
-            // wait for child process to finish
-            waitpid(pid, &status, 0);
+        } else if (pid > 0) {
+            // the parent process
+            if (background) {
+                // bg: push PID to stack, show $
+                pid_stack.push(pid);
+                printf("$ ");
+                fflush(stdout);
+            } else {
+                // fg: wait for child to finish
+                waitpid(pid, &status, 0);
+            }
         }
     }
     return 0;
