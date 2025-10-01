@@ -111,8 +111,26 @@ int main() {
                 // wait for pid on stack top then pop it
                 waitpid(bg_pid, &status, 0);
             } else {
-                cout << "No b"
+                printf("No background processes");
             }
+            continue;
+        }
+
+        pid = fork();
+        if (pid < 0) {
+            perror("The fork failed");
+            continue;
+        }
+
+        if (pid == 0) {
+            // child process
+            if (execvp(token[0], token) < 0) {
+                perror("The execvpt failed");
+                exit(1);
+            }
+        } else {
+            // wait for child process to finish
+            waitpid(pid, &status, 0);
         }
     }
     return 0;
