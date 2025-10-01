@@ -70,7 +70,7 @@ int main() {
     bool background = false; // true if command is &
 
     while (true) {
-        printf("$");
+        printf("$ ");
         fflush(stdout);
         getline(cin, fullLine);
         if (fullLine.empty()) continue;
