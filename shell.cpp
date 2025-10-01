@@ -50,7 +50,6 @@
  *  5. int stcmpt( const char* s1, const char* s2)
  *  6. pid_t waitpid( pid_t pid, int *status, 0 )
  */
-
 #include <iostream>
 #include <string>
 #include <stack>
@@ -62,6 +61,63 @@
 
 using namespace std;
 
+int main() {
+    pid_t pid = 0;           // child process id to be returned from
+    stack<pid_t> pid_stack;  // pid stack of children in the background
+    string fullLine;         // stores full line from the keyboard
+    int status;              // get termination status from child
+    char* token[100]; // tokenize the fullLine
+    bool background = false; // true if command is &
+
+    while (true) {
+        printf("$");
+        fflush(stdout);
+        getline(cin, fullLine);
+        if (fullLine.empty()) continue;
+
+        // Handle Delimiters
+        background = false;
+        char endChar = fullLine.back(); // to get & or ;
+        // if the last character is '&' or ';' --> then replace with space ' '
+        if (endChar == '&') {
+            background = true;  // set background as true if last char is &
+            fullLine.back() = ' ';
+        } else if (endChar == ';') {
+            fullLine.back() = ' ';
+        }
+
+        // Tokenize Input Line
+        const char* delimiter = " ";
+        token[0] = strtok((char*)fullLine.c_str(), delimiter);
+        int i = 0;
+        while (token[i] != NULL) {
+            i++;
+            token[i] = strtok(NULL, delimiter);
+        }
+        if (token[0] == NULL) continue; // if there's no command entered
+
+        // Commands
+        if (strcmp(token[0], "exit") == 0) {
+            break; // exit the shell
+        }
+
+        //wait for pid on stack top then pop it, fork a child shell, child replace it with
+        // token[0] to now be the entire token. If !background, parent waits for child,
+        // else put child pid back into pid_stack)
+        if (strcmp(token[0], "fg") == 0) {
+            if (!pid_stack.empty()) {
+                pid_t bg_pid = pid_stack.top();
+                pid_stack.pop();
+                // wait for pid on stack top then pop it
+                waitpid(bg_pid, &status, 0);
+            } else {
+                cout << "No b"
+            }
+        }
+    }
+    return 0;
+}
+/*
 int main() {
     // pid_t --> data type to rep PID (Process ID)
     // for background processes, used with fg
@@ -142,10 +198,11 @@ int main() {
             // Fork Failure
             cerr << "fork failed: "  << endl;
         }
-        free(c_type_string);
+
+        free(c_type_string); // release mem allocated with strdup().
     }
     return 0;
 }
 
-
+*/
 
