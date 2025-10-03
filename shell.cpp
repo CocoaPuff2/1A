@@ -126,14 +126,17 @@ int main() {
             }
         } else if (pid > 0) {
             // the parent process
-            if (background) {
+            if (!background) {
+                // todo; Changed some stuff, see if fixes $ issue
+                waitpid(pid, &status, 0);
                 // bg: push PID to stack, show $
-                pid_stack.push(pid);
-                printf("$ ");
-                fflush(stdout);
+                // pid_stack.push(pid);
+                // printf("$ ");
+                // fflush(stdout);
             } else {
                 // fg: wait for child to finish
-                waitpid(pid, &status, 0);
+                pid_stack.push(pid);
+                // waitpid(pid, &status, 0);
             }
         }
     }
