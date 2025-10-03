@@ -101,7 +101,36 @@ int main() {
             break; // exit the shell
         }
 
-        //wait for pid on stack top then pop it, fork a child shell, child replace it with
+        // special check for ps command to remove extra processes
+        if (strcmp(token[0], "ps") == 0) {
+            pid_t ps_pid = fork();
+            if (ps_pid < 0) {
+                continue;
+            } else if (ps_pid == 0) {
+                // Child process: run ps in two sections, filtering unwanted processes
+                char* ps_command = (char*)"bash";
+                char* ps_args[] = {
+                        (char*)"bash",
+                        (char*)"-c",
+                        (char*)"(ps -u css430 -o pid,tty | grep -v sftp-server | grep -v sshd; "
+                               "ps -u css430 -o time,cmd | grep -v sftp-server | grep -v sshd)",
+                        NULL
+                };
+                execvp(ps_command, ps_args);
+                exit(1);
+            } else {
+                // Parent waits if foreground
+                if (!background) {
+                    waitpid(ps_pid, &status, 0);
+                } else {
+                    pid_stack.push(ps_pid);
+                }
+            }
+            continue; // skip normal execvp
+        }
+
+
+        // wait for pid on stack top then pop it, fork a child shell, child replace it with
         // token[0] to now be the entire token. If !background, parent waits for child,
         // else put child pid back into pid_stack)
         if (strcmp(token[0], "fg") == 0) {
@@ -109,125 +138,49 @@ int main() {
                 pid_t bg_pid = pid_stack.top();
                 pid_stack.pop();
                 // wait for pid on stack top then pop it
-                waitpid(bg_pid, &status, 0);
+                // TODO: uncomment the bottom line if new code doesn't work
+                // waitpid(bg_pid, &status, 0);
+                // TODO: delete bottom code if it doesn't work
+                pid = fork();
+                if (pid < 0) {
+                    perror("fork failed");
+                } else if (pid == 0) {
+                    // Child just exits immediately after wait (optional)
+                    exit(0);
+                } else {
+                    // Parent waits for the background process
+                    waitpid(bg_pid, &status, 0);
+                    waitpid(pid, &status, 0); // wait for dummy child if needed
+                }
+                // todo: delete in bw
+
             }
             continue;
         }
 
         pid = fork();
         if (pid < 0) {
-            perror("The fork failed");
             continue;
         } else if (pid == 0) {
             // child process
             if (execvp(token[0], token) < 0) {
-                perror("The execvpt failed");
                 exit(1);
             }
         } else if (pid > 0) {
             // the parent process
             if (!background) {
-                // todo; Changed some stuff, see if fixes $ issue
                 waitpid(pid, &status, 0);
-                // bg: push PID to stack, show $
-                // pid_stack.push(pid);
-                // printf("$ ");
-                // fflush(stdout);
             } else {
-                // fg: wait for child to finish
                 pid_stack.push(pid);
-                // waitpid(pid, &status, 0);
             }
         }
     }
     return 0;
 }
-/*
-int main() {
-    // pid_t --> data type to rep PID (Process ID)
-    // for background processes, used with fg
-    stack<pid_t> background_stack;
+// bg: push PID to stack, show $
+// pid_stack.push(pid);
+// printf("$ ");
+// fflush(stdout);
 
-    while(true) {
-    // a) Show prompt ($), keep shell running (infinite loop)
-        cout << "$" << flush; // display immediately
-        string input;
-        if (!getline(cin, input)) break; // exit the shell
-
-        if(input.empty()) continue;
-
-        // b) Parse input into individual words
-        char *c_type_string = strdup(input.c_str());
-        if (!c_type_string) continue;
-
-        // tokenize input
-        char *token = strtok(c_type_string, " ");
-        if (!token) {
-            free(c_type_string);
-            continue;
-        }
-
-        vector<char*> args;
-        while (token) {
-            args.push_back(token);
-            token = strtok(nullptr, " ");
-        }
-        args.push_back(nullptr); // execvp needs null-terminated array
-
-        // exit command
-        if (strcmp(args[0], "exit") == 0) {
-            free(c_type_string);
-            break;
-        }
-
-        // fg command
-        if (strcmp(args[0], "fg") == 0) { // brings background processes to the foreground
-            if (!background_stack.empty()) {
-                pid_t pid = background_stack.top();
-                background_stack.pop();
-                waitpid(pid, nullptr, 0); // wait for finish
-            }
-            free(c_type_string);
-            continue;
-        }
-
-        // d) Check delimiter ';' or '&'
-        bool background = false;
-        char *last_arg = args[args.size() - 2];
-        size_t length = strlen(last_arg);
-
-        if (last_arg[length - 1] == ';') {
-            last_arg[length - 1] = '\0'; // remove the ';'
-        } else if (last_arg[length - 1] == '&') {
-            last_arg[length - 1] = '\0'; // remove the '&'
-            background = true; // & means background processes
-        }
-
-        // e) Fork child proecess
-        pid_t pid = fork();
-
-        if (pid == 0) {
-            // Execute the command in child process
-            execvp(args[0], args.data());
-            cerr << "execvp failed: " << endl;
-            exit(1); // if exec fails
-        } else if (pid > 0) {
-            // Execute parent process
-            if (background) {
-                background_stack.push(pid);
-            }  else {
-                // wait for child process to complete
-                waitpid(pid, nullptr, 0);
-            }
-        } else {
-            // Fork Failure
-            cerr << "fork failed: "  << endl;
-        }
-
-        free(c_type_string); // release mem allocated with strdup().
-    }
-    return 0;
-}
-
-*/
-
+// fg: wait for child to finish
+// waitpid(pid, &status, 0);
