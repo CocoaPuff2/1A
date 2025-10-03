@@ -101,34 +101,6 @@ int main() {
             break; // exit the shell
         }
 
-        // special check for ps command to remove extra processes
-        if (strcmp(token[0], "ps") == 0) {
-            pid_t ps_pid = fork();
-            if (ps_pid < 0) {
-                continue;
-            } else if (ps_pid == 0) {
-                // Child process: run ps in two sections, filtering unwanted processes
-                char* ps_command = (char*)"bash";
-                char* ps_args[] = {
-                        (char*)"bash",
-                        (char*)"-c",
-                        (char*)"(ps -u css430 -o pid,tty | grep -v sftp-server | grep -v sshd; "
-                               "ps -u css430 -o time,cmd | grep -v sftp-server | grep -v sshd)",
-                        NULL
-                };
-                execvp(ps_command, ps_args);
-                exit(1);
-            } else {
-                // Parent waits if foreground
-                if (!background) {
-                    waitpid(ps_pid, &status, 0);
-                } else {
-                    pid_stack.push(ps_pid);
-                }
-            }
-            continue; // skip normal execvp
-        }
-
 
         // wait for pid on stack top then pop it, fork a child shell, child replace it with
         // token[0] to now be the entire token. If !background, parent waits for child,
