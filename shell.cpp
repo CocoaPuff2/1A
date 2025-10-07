@@ -70,9 +70,6 @@ int main() {
                 pid_t bg_pid = pid_stack.top();
                 pid_stack.pop();
                 // wait for pid on stack top then pop it
-                // TODO: uncomment the bottom line if new code doesn't work
-                // waitpid(bg_pid, &status, 0);
-                // TODO: delete bottom code if it doesn't work
                 pid = fork();
                 if (pid < 0) {
                     perror("fork failed");
@@ -84,7 +81,6 @@ int main() {
                     waitpid(bg_pid, &status, 0);
                     waitpid(pid, &status, 0); // wait for dummy child if needed
                 }
-                // todo: delete in bw
 
             }
             continue;
